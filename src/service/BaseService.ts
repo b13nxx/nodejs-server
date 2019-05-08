@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response, Router } from 'express'
 import { Pool } from 'mysql'
 import HttpStatus from '../definition/HttpStatus'
+import ServiceResponse from '../definition/ServiceResponse'
 
 export default class BaseService {
   private router: Router
@@ -29,7 +30,7 @@ export default class BaseService {
         if (!BaseService.checkQuery(req.query, params)) return BaseService.send(res, HttpStatus.BadRequest)
         if (params.length > 1) req.query = BaseService.orderQuery(req.query, params)
         self[name].apply(self, Object.values(req.query))
-          .then(body => BaseService.send(res, body.status, body.response))
+          .then((body: ServiceResponse) => BaseService.send(res, body.status, body.response))
           .catch(next)
       })
     }

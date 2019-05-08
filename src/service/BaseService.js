@@ -25,7 +25,7 @@ class BaseService {
                 if (params.length > 1)
                     req.query = BaseService.orderQuery(req.query, params);
                 self[name].apply(self, Object.values(req.query))
-                    .then(body => BaseService.send(res, body.status, body.response))
+                    .then((body) => BaseService.send(res, body.status, body.response))
                     .catch(next);
             });
         }

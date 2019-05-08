@@ -1,6 +1,7 @@
 import { Router } from 'express'
-import { Pool } from 'mysql'
+import { Pool, MysqlError, FieldInfo } from 'mysql'
 import HttpStatus from '../definition/HttpStatus'
+import ServiceResponse from '../definition/ServiceResponse'
 import BaseService from './BaseService'
 
 export default class ToDo extends BaseService {
@@ -9,9 +10,9 @@ export default class ToDo extends BaseService {
     this.dynamicRequest(this)
   }
 
-  list () {
+  list (): Promise<ServiceResponse> {
     return new Promise((resolve, reject) => {
-      this.connectionPool.query('SELECT * FROM todos', (error, results, fields) => {
+      this.connectionPool.query('SELECT * FROM todos', (error: MysqlError, results: any, fields: FieldInfo[]) => {
         if (error) return reject(error)
 
         resolve({
@@ -22,7 +23,7 @@ export default class ToDo extends BaseService {
     })
   }
 
-  add (title: string, createdBy: string) {
+  add (title: string, createdBy: string): Promise<ServiceResponse> {
     return new Promise((resolve, reject) => {
       resolve({
         status: HttpStatus.Created,
@@ -31,7 +32,7 @@ export default class ToDo extends BaseService {
     })
   }
 
-  del (id: number) {
+  del (id: number): Promise<ServiceResponse> {
     return new Promise((resolve, reject) => {
       resolve({
         status: HttpStatus.OK,
