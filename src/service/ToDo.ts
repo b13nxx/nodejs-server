@@ -11,8 +11,8 @@ export default class ToDo extends BaseService {
   }
 
   list (): Promise<ServiceResponse> {
-    return new Promise((resolve, reject) => {
-      this.connectionPool.query('SELECT * FROM todos', (error: MysqlError, results: any, fields: FieldInfo[]) => {
+    return new Promise((resolve: Function, reject: Function) => {
+      this.connectionPool.query('SELECT * FROM todos', (error: MysqlError | null, results: any, fields: FieldInfo[]) => {
         if (error) return reject(error)
 
         resolve({
@@ -24,7 +24,7 @@ export default class ToDo extends BaseService {
   }
 
   add (title: string, createdBy: string): Promise<ServiceResponse> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve: Function, reject: Function) => {
       resolve({
         status: HttpStatus.Created,
         response: 'New todo has been created'
@@ -33,7 +33,7 @@ export default class ToDo extends BaseService {
   }
 
   del (id: number): Promise<ServiceResponse> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve: Function, reject: Function) => {
       resolve({
         status: HttpStatus.OK,
         response: 'You actually tried to erase me?'

@@ -2,7 +2,7 @@ import HttpStatus from './HttpStatus'
 
 type ServiceResponse = {
   status: HttpStatus,
-  response: Array<Object> | Object
+  response: any
 }
 
 export default ServiceResponse
