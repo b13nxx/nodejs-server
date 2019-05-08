@@ -3,47 +3,37 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const HttpStatus_1 = require("../definition/HttpStatus");
 class BaseService {
-    constructor(router) {
-        this.setRouter(express_1.Router());
+    constructor(router, connectionPool) {
+        this.router = express_1.Router();
+        this.connectionPool = connectionPool;
         this.setup(router);
-    }
-    setRouter(router) {
-        this.router = router;
-    }
-    getRouter() {
-        return this.router;
     }
     getName() {
         return this.constructor.name.toLowerCase();
     }
     setup(router) {
-        this.getRouter().get('/', (req, res) => BaseService.send(res, HttpStatus_1.default.NoContent));
-        this.checkIfMethodExists();
-        router.use('/' + this.getName(), this.getRouter());
+        router.use('/' + this.getName(), this.router);
+        this.router.get('/', (req, res) => BaseService.send(res, HttpStatus_1.default.NoContent));
     }
-    dynamicRequest(methods) {
+    dynamicRequest(self) {
+        let methods = BaseService.getMethods(self);
         for (let name of methods) {
-            this.getRouter().get('/' + name, (req, res) => {
-                let args = BaseService.getParameters(name, this[name]);
-                if (!BaseService.checkQuery(req.query, args))
+            this.router.get('/' + name, (req, res, next) => {
+                let params = BaseService.getParameters(name, self[name].toString());
+                if (!BaseService.checkQuery(req.query, params))
                     return BaseService.send(res, HttpStatus_1.default.BadRequest);
-                req.query = BaseService.orderQuery(req.query, args);
-                let body = this[name].apply(null, Object.values(req.query));
-                BaseService.send(res, body.status, body.response);
+                if (params.length > 1)
+                    req.query = BaseService.orderQuery(req.query, params);
+                self[name].apply(self, Object.values(req.query))
+                    .then(body => BaseService.send(res, body.status, body.response))
+                    .catch(next);
             });
         }
-        this.getRouter().use((er, req, res, next) => BaseService.send(res, HttpStatus_1.default.InternalServerError));
-    }
-    checkIfMethodExists() {
-        this.getRouter().use((req, res, next) => {
+        this.router.use((req, res, next) => {
             let breadcrumbs = req.path.substr(1).split('/');
             if (breadcrumbs[breadcrumbs.length - 1] === '')
                 breadcrumbs.pop();
-            if (breadcrumbs.length > 1)
-                return BaseService.send(res, HttpStatus_1.default.NotFound);
-            if (!BaseService.getMethods(this).includes(breadcrumbs[0]))
-                return BaseService.send(res, HttpStatus_1.default.NotImplemented);
-            next();
+            return breadcrumbs.length === 1 ? BaseService.send(res, HttpStatus_1.default.NotImplemented) : next();
         });
     }
     static getMethods(self) {
@@ -51,13 +41,15 @@ class BaseService {
         methods.shift();
         return methods;
     }
-    static getParameters(name, method) {
-        let str = method.toString();
+    static getParameters(name, methodString) {
         let pattern = new RegExp(name + '\\s*\\((.*)\\)');
-        let args = str.match(pattern)[1].split(',');
-        for (let i = 0; i < args.length; i++)
-            args[i] = args[i].trim();
-        return args;
+        let params = [];
+        if (methodString.match(pattern)[1].split(',')[0].length) {
+            params = methodString.match(pattern)[1].split(',');
+            for (let i = 0; i < params.length; i++)
+                params[i] = params[i].trim();
+        }
+        return params;
     }
     static checkQuery(query, args) {
         if (Object.keys(query).length !== args.length)

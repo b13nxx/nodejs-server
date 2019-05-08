@@ -1,4 +1,5 @@
 import * as express from 'express'
+import * as mysql from 'mysql'
 import { config } from 'dotenv'
 import { Dirent, readdirSync } from 'fs'
 import HttpStatus from '../definition/HttpStatus'
@@ -6,61 +7,53 @@ import HttpStatus from '../definition/HttpStatus'
 class Server {
   private app: express.Application
   private router: express.Router
-  private port: string
+  private connectionPool: mysql.Pool
 
   constructor () {
-    this.setApp(express())
-    this.setRouter(express.Router())
+    this.app = express()
+    this.router = express.Router()
+    this.connectionPool = mysql.createPool({
+      host: 'localhost',
+      user     : 'root',
+      password : 'mysql',
+      database : 'my_db',
+      connectionLimit: 10
+    })
     config()
     this.setup(process.env.PORT)
   }
 
-  setApp (app: express.Application) {
-    this.app = app
-  }
-
-  getApp (): express.Application {
-    return this.app
-  }
-
-  setRouter (router: express.Router) {
-    this.router = router
-  }
-
-  getRouter (): express.Router {
-    return this.router
-  }
-
-  listen (port: string): void {
-    this.getApp().listen(port, () => {
+  private listen (port: string): void {
+    this.app.listen(port, () => {
       console.log('Server running on port ' + port)
     })
   }
 
-  setup (port: string): void {
+  private setup (port: string): void {
     this.listen(port)
-    this.getApp().use('/api', this.getRouter())
-    this.getRouter().get('/', (req: express.Request, res: express.Response) => res.sendStatus(HttpStatus.NoContent))
+    this.app.use('/api', this.router)
+    this.router.get('/', (req: express.Request, res: express.Response) => res.sendStatus(HttpStatus.NoContent))
     this.load()
-    this.getRouter().use((req: express.Request, res: express.Response) => res.sendStatus(HttpStatus.NotFound))
+    this.router.use((req: express.Request, res: express.Response) => res.sendStatus(HttpStatus.NotFound))
+    this.router.use((er, req, res, next) => res.sendStatus(HttpStatus.InternalServerError))
   }
 
-  load (): void {
+  private load (): void {
     for (let service of Server.getServices()) {
       service = require('../service/' + service).default
       // @ts-ignore
-      service = new service(this.getRouter())
+      service = new service(this.router, this.connectionPool)
     }
   }
 
-  static getServices (lowerCase = false): string[] {
+  static getServices (): string[] {
     let names: string[] = []
     let info
     for (let file of readdirSync('./src/service')) {
       info = file.split('.')
       info.ext = info.pop()
       info.name = info.join('')
-      if (info.name !== 'BaseService' && info.ext === 'js') names.push(lowerCase ? info.name.toLowerCase() : info.name)
+      if (info.name !== 'BaseService' && info.ext === 'js') names.push(info.name)
     }
     return names
   }
